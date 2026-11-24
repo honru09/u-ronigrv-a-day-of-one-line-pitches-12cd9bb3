@@ -1,61 +1,51 @@
-"""Write the one-line pitch for the make.fun bounty
-"A Day of One-Line Pitches" to /output/entry.txt.
+"""One-line pitch entry (round 2, fresh write).
 
-The entry is a single sentence meant to convince a friend who has
-never coded to let an AI agent build their first app idea on make.fun.
-Deterministic, standard library only, no network, no randomness, no
-clock reads: the same input always produces the same file.
+Writes a single sentence to /output/entry.txt.
+Stdlib only, no network, deterministic.
 """
 
 import os
-import sys
+import shutil
 
-ENTRY = (
-    "You already have the hard part \u2014 the idea \u2014 so hand it to "
-    "an AI agent on make.fun and it'll build your first app for you, "
-    "free to try, no code required."
+SENTENCE = (
+    "Forget learning to code first \u2014 tell an AI agent on make.fun "
+    "your app idea like you'd tell a friend, and try the first "
+    "version it builds for you, free."
 )
 
-MIN_CHARS = 1
-MAX_CHARS = 240
+OUTPUT_DIR = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+OUTPUT_PATH = os.path.join(OUTPUT_DIR, "entry.txt")
 
 
-def validate(text):
-    """Gate: 1-240 characters, not only whitespace. Exit non-zero otherwise."""
-    if not (MIN_CHARS <= len(text) <= MAX_CHARS):
-        print(
-            "entry must be %d-%d characters, got %d"
-            % (MIN_CHARS, MAX_CHARS, len(text)),
-            file=sys.stderr,
-        )
+def _is_single_sentence(sentence):
+    # "make.fun" contains a period that is not a sentence break.
+    probe = sentence.replace("make.fun", "makefun")
+    if not sentence.endswith("."):
         return False
-    if not text.strip():
-        print("entry must not be only whitespace", file=sys.stderr)
-        return False
-    return True
-
-
-def clear_contents(out_dir):
-    """Clear only the contents of the output dir, never the dir itself."""
-    for name in os.listdir(out_dir):
-        path = os.path.join(out_dir, name)
-        if os.path.isdir(path) and not os.path.islink(path):
-            clear_contents(path)
-            os.rmdir(path)
-        else:
-            os.remove(path)
+    # No other sentence-ending period followed by a space/capital.
+    body = probe[:-1]
+    return ". " not in body and "!" not in body and "?" not in body
 
 
 def main():
-    if not validate(ENTRY):
-        sys.exit(1)
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
-    clear_contents(out_dir)
-    target = os.path.join(out_dir, "entry.txt")
-    with open(target, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(ENTRY)
-    os.chmod(target, 0o644)
+    sentence = SENTENCE.strip()
+    if not 1 <= len(sentence) <= 240:
+        raise SystemExit("entry must be 1-240 characters, got %d" % len(sentence))
+    if "\n" in sentence or "\r" in sentence:
+        raise SystemExit("entry must be a single line")
+    if not _is_single_sentence(sentence):
+        raise SystemExit("entry must be a single sentence")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Clear the CONTENTS of /output only; never remove /output itself.
+    for name in os.listdir(OUTPUT_DIR):
+        path = os.path.join(OUTPUT_DIR, name)
+        if os.path.islink(path) or os.path.isfile(path):
+            os.remove(path)
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+    with open(OUTPUT_PATH, "w", encoding="utf-8", newline="\n") as f:
+        f.write(sentence + "\n")
+    os.chmod(OUTPUT_PATH, 0o644)
 
 
 if __name__ == "__main__":
